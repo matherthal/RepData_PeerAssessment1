@@ -1,25 +1,121 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Assignment 1"
+author: "Matheus Erthal"
+date: "16/11/2014"
+output: html_document
 ---
 
-
-## Loading and preprocessing the data
-
+##Loading and preprocessing the data
 
 
-## What is mean total number of steps taken per day?
+The data is loaded into `raw_data` and `data` keeps the records where the steps are not NA.
+
+```{r, echo=TRUE}
+library(ggplot2)
+require(lubridate)
+
+raw_data <- read.csv('activity.csv')
+data <- raw_data[!is.na(raw_data$steps), ]
+```
+
+##What is mean total number of steps taken per day?
+
+The histogram bellow shows the sum of steps taken per day. 
+
+```{r, echo=TRUE}
+data_sum <- aggregate(steps ~ date, data=data, sum)
+hist(data_sum$steps, xlab = "Steps")
+```
+
+##What is the average daily activity pattern?
+
+The data mean and median taken per day are kept respectivelly by `data_mean` and `data_median`, and we can see them in the histograms bellow.
+
+```{r, echo=TRUE}
+data_mean <- aggregate(steps ~ date, data=data, mean)
+data_median <- aggregate(steps ~ date, data=data, median)
+hist(data_mean$steps, xlab = "Steps")
+hist(data_median$steps, xlab = "Steps")
+```
+
+The plot bellow shows us the average number of steps measured for each 5 min interval.
+
+```{r, echo=TRUE}
+data_mean_interval <- aggregate(steps ~ interval, data, mean)
+plot(x = data_mean_interval$interval, y = data_mean_interval$steps, type = "l")
+```
+
+The interval where the steps are maximun is:
+
+```{r, echo=TRUE}
+data_mean_interval[max(data_mean_interval$steps), ]
+```
+
+
+##Inputing missing data
+
+Considering the amount of steps without measurement (i.e., NAs) present in the dataset, taken by: 
+
+```{r, echo=TRUE}
+sum(is.na(raw_data$steps))
+```
+
+we have adopted a strategy for filling these gaps. We took the mean of the measurements for the day and we filled the missing data with these values.
+
+```{r, echo=TRUE}
+for(i in 1:nrow(raw_data)) {
+    if(is.na(raw_data[i, "steps"])) {
+        steps <- data_mean[raw_data[i, "date"], "steps"]
+        if(!is.na(steps)) {
+            raw_data[i, "steps"] <- steps
+        } else {
+            raw_data[i, "steps"] <- 0
+        }
+    }
+}
+data <- raw_data
+```
+
+Now the total of NAs is:
+
+```{r, echo=TRUE}
+sum(is.na(raw_data$steps))
+```
+
+The new mean and median through the days are shown in the histograms bellow.
+
+```{r, echo=TRUE}
+data_mean <- aggregate(steps ~ date, data, mean)
+data_median <- aggregate(steps ~ date, data, median)
+hist(data_mean$steps, xlab = "Steps")
+hist(data_median$steps, xlab = "Steps")
+```
 
 
 
-## What is the average daily activity pattern?
+```{r, echo=TRUE}
+data_mean_interval <- aggregate(steps ~ interval, data, mean)
 
+plot(x = data_mean_interval$interval, y = data_mean_interval$steps, type = "l")
 
+data_mean_interval[max(data_mean_interval$steps), ]
+```
 
-## Imputing missing values
+##Are there differences in activity patterns between weekdays and weekends?
 
+The code bellow separates the days in weekends and weekdays.
 
+```{r, echo=TRUE}
+data["week"] <- as.POSIXlt(data$date)$wday
+data["week"] <- ifelse((data$week==1 | data$week==6),"weekend","weekday")
+data$week <- as.factor(data$week)
 
-## Are there differences in activity patterns between weekdays and weekends?
+```
+
+As we can see in the plot bellow, there is a difference in the distribution of steps between the weekdays and weekends. In the weedays the number are higher after 500 intervals and then it diminishes after some time, then it maintains. In the weekends we can see two tops.
+
+```{r, echo=TRUE}
+ggplot(data=data, aes(x=data$interval, y=data$steps)) + 
+    geom_line() + xlab("Interval") + ylab("Number of steps") +
+    facet_wrap( ~ week, nrow = 2)
+```
