@@ -1,4 +1,7 @@
 ---
+output: html_document
+---
+---
 title: "Assignment 1"
 author: "Matheus Erthal"
 date: "16/11/2014"
@@ -32,7 +35,9 @@ The histogram bellow shows the sum of steps taken per day.
 
 ```{r, echo=TRUE}
 data_sum <- aggregate(steps ~ date, data=data, sum)
+png(filename="figure/hist-steps_per_day.png")
 hist(data_sum$steps, xlab = "Steps", main = "Histogram - Steps per day")
+dev.off()
 ```
 
 Below we calculate the mean and median for the total number of steps across all days.
@@ -66,8 +71,10 @@ data_mean_interval <- ddply(data, .(intervalAsTime), summarize,
  meanSteps = round(mean(steps), 2))
 #,sdSteps = round(sd(steps), 2)
 
+png(filename="figure/mean_steps.png")
 plot(x = data_mean_interval$intervalAsTime, y = data_mean_interval$meanSteps, 
      type = "l", xlab = "Interval (hh:mm)", ylab = "Mean of steps")
+dev.off()
 ```
 
 The interval where the steps are maximun is:
@@ -92,14 +99,6 @@ data2 <- raw_data
 for(i in 1:nrow(data2)) {
     m <- mean(data2$steps, na.rm = TRUE)
     data2[is.na(data2$steps), "steps"] <- m
-#     if(is.na(data2[i, "steps"])) {
-#         steps <- data_mean[data2[i, "date"], "steps"]
-#         if(!is.na(steps)) {
-#             data2[i, "steps"] <- steps
-#         } else {
-#             data2[i, "steps"] <- 0
-#         }
-#     }
 }
 ```
 
@@ -109,7 +108,7 @@ Now the total of NAs is 0, as expected:
 sum(is.na(data2$steps))
 ```
 
-The new mean and median through the days are shown in the histograms bellow.
+The new mean and median are equal to the previously calculated, so it will not impact the final result.
 
 ```{r, echo=TRUE}
 mean(data2$steps)
@@ -121,12 +120,12 @@ median(data2$steps)
 # hist(data_median$steps, xlab = "Steps")
 ```
 
-
-
 ```{r, echo=TRUE}
 data_mean_interval <- aggregate(steps ~ interval, data, mean)
 
+png(filename="figure/plot-interval_steps.png")
 plot(x = data_mean_interval$interval, y = data_mean_interval$steps, type = "l")
+dev.off()
 
 data_mean_interval[max(data_mean_interval$steps), ]
 
@@ -137,9 +136,11 @@ Histogram for the total of steps taken each day
 data2_steps <- ddply(data2, .(date), summarize,
                      sumSteps = round(sum(steps), 2))
 
+png(filename="figure/plot-interval_steps.png")
 hist(data2_steps$sumSteps, 
      xlab = "Steps per day", 
      main = "Histogram of steps per day")
+dev.off()
 ```
 
 Mean and median of the total number of steps
@@ -159,16 +160,18 @@ Comparing to the first calculations, the median does no differ from it, but the 
 The code bellow separates the days in weekends and weekdays.
 
 ```{r, echo=TRUE}
-data["week"] <- as.POSIXlt(data$date)$wday
-data["week"] <- ifelse((data$week==1 | data$week==6),"weekend","weekday")
-data$week <- as.factor(data$week)
+data2["week"] <- as.POSIXlt(data2$date)$wday
+data2["week"] <- ifelse((data2$week==1 | data2$week==6),"weekend","weekday")
+data2$week <- as.factor(data2$week)
 
 ```
 
 As we can see in the plot bellow, there is a difference in the distribution of steps between the weekdays and weekends. In the weedays the number are higher after 500 intervals and then it diminishes after some time, then it maintains. In the weekends we can see two tops.
 
 ```{r, echo=TRUE}
-ggplot(data=data, aes(x=data$interval, y=data$steps)) + 
+png(filename="figure/plot-interval_steps-week.png")
+ggplot(data=data2, aes(x=data2$interval, y=data2$steps)) + 
     geom_line() + xlab("Interval") + ylab("Number of steps") +
     facet_wrap( ~ week, nrow = 2)
+dev.off()
 ```
