@@ -3,19 +3,27 @@ title: "Assignment 1"
 author: "Matheus Erthal"
 date: "16/11/2014"
 output: html_document
----
+--- 
 
 ##Loading and preprocessing the data
 
 
 The data is loaded into `raw_data` and `data` keeps the records where the steps are not NA.
 
-```{r, echo=TRUE}
+```{r, echo=FALSE}
 library(ggplot2)
 require(lubridate)
+require(plyr)
+```
 
+```{r, echo=TRUE}
 raw_data <- read.csv('activity.csv')
 data <- raw_data[!is.na(raw_data$steps), ]
+#data$date <- as.Date(data$date, "%Y-%m-%d")
+#data$datetime <- as.POSIXct(data$date)
+#data$datetime <- data$datetime - 3600*21 + data$interval*60
+data$datetime <- paste(data$date, data$interval)
+
 ```
 
 ##What is mean total number of steps taken per day?
@@ -24,31 +32,48 @@ The histogram bellow shows the sum of steps taken per day.
 
 ```{r, echo=TRUE}
 data_sum <- aggregate(steps ~ date, data=data, sum)
-hist(data_sum$steps, xlab = "Steps")
+hist(data_sum$steps, xlab = "Steps", main = "Histogram - Steps per day")
 ```
 
-##What is the average daily activity pattern?
-
-The data mean and median taken per day are kept respectivelly by `data_mean` and `data_median`, and we can see them in the histograms bellow.
+Below we calculate the mean and median for the total number of steps across all days.
 
 ```{r, echo=TRUE}
-data_mean <- aggregate(steps ~ date, data=data, mean)
-data_median <- aggregate(steps ~ date, data=data, median)
-hist(data_mean$steps, xlab = "Steps")
-hist(data_median$steps, xlab = "Steps")
-```
+#The data mean and median taken per day are kept respectivelly by `data_mean` and `data_median`, and we can see them in the histograms bellow.
+round(mean(data$steps), 2)
+round(median(data$steps), 2)
+##m <- function(x){ c(mean(x), median(x)) }
+##data_mm <- aggregate(steps ~ date, data=data, m)
+##summary(data_mm)
+
+#data_mean <- aggregate(steps ~ date, data=data, mean)
+#data_mean
+#hist(data_mean$steps, xlab = "Steps")
+#data_median <- aggregate(steps ~ date, data=data, median)
+#data_median
+#hist(data_median$steps, xlab = "Steps")
+``` 
+
+##What is the average daily activity pattern?
 
 The plot bellow shows us the average number of steps measured for each 5 min interval.
 
 ```{r, echo=TRUE}
-data_mean_interval <- aggregate(steps ~ interval, data, mean)
-plot(x = data_mean_interval$interval, y = data_mean_interval$steps, type = "l")
+convertIntToTime <- function(x) { strptime(sprintf("%04d", x), format="%H%M") }
+data$intervalAsTime <- convertIntToTime(data$interval)
+# data_mean_interval <- aggregate(steps ~ interval, data, mean)
+
+data_mean_interval <- ddply(data, .(intervalAsTime), summarize,
+ meanSteps = round(mean(steps), 2))
+#,sdSteps = round(sd(steps), 2)
+
+plot(x = data_mean_interval$intervalAsTime, y = data_mean_interval$meanSteps, 
+     type = "l", xlab = "Interval (hh:mm)", ylab = "Mean of steps")
 ```
 
 The interval where the steps are maximun is:
 
 ```{r, echo=TRUE}
-data_mean_interval[max(data_mean_interval$steps), ]
+data_mean_interval[max(data_mean_interval$meanSteps), "interval"]
 ```
 
 
@@ -59,36 +84,41 @@ Considering the amount of steps without measurement (i.e., NAs) present in the d
 ```{r, echo=TRUE}
 sum(is.na(raw_data$steps))
 ```
-
-we have adopted a strategy for filling these gaps. We took the mean of the measurements for the day and we filled the missing data with these values.
+ 
+The strategy we have adopted for filling these gaps consists of taking the mean of the measurements for the day and overwriting the NAs with these values. The following code shows how it is done:
 
 ```{r, echo=TRUE}
-for(i in 1:nrow(raw_data)) {
-    if(is.na(raw_data[i, "steps"])) {
-        steps <- data_mean[raw_data[i, "date"], "steps"]
-        if(!is.na(steps)) {
-            raw_data[i, "steps"] <- steps
-        } else {
-            raw_data[i, "steps"] <- 0
-        }
-    }
+data2 <- raw_data
+for(i in 1:nrow(data2)) {
+    m <- mean(data2$steps, na.rm = TRUE)
+    data2[is.na(data2$steps), "steps"] <- m
+#     if(is.na(data2[i, "steps"])) {
+#         steps <- data_mean[data2[i, "date"], "steps"]
+#         if(!is.na(steps)) {
+#             data2[i, "steps"] <- steps
+#         } else {
+#             data2[i, "steps"] <- 0
+#         }
+#     }
 }
-data <- raw_data
 ```
 
-Now the total of NAs is:
+Now the total of NAs is 0, as expected:
 
 ```{r, echo=TRUE}
-sum(is.na(raw_data$steps))
+sum(is.na(data2$steps))
 ```
 
 The new mean and median through the days are shown in the histograms bellow.
 
 ```{r, echo=TRUE}
-data_mean <- aggregate(steps ~ date, data, mean)
-data_median <- aggregate(steps ~ date, data, median)
-hist(data_mean$steps, xlab = "Steps")
-hist(data_median$steps, xlab = "Steps")
+mean(data2$steps)
+median(data2$steps)
+
+# data_mean <- aggregate(steps ~ date, data, mean)
+# data_median <- aggregate(steps ~ date, data, median)
+# hist(data_mean$steps, xlab = "Steps")
+# hist(data_median$steps, xlab = "Steps")
 ```
 
 
@@ -99,7 +129,30 @@ data_mean_interval <- aggregate(steps ~ interval, data, mean)
 plot(x = data_mean_interval$interval, y = data_mean_interval$steps, type = "l")
 
 data_mean_interval[max(data_mean_interval$steps), ]
+
 ```
+
+Histogram for the total of steps taken each day
+```{r}
+data2_steps <- ddply(data2, .(date), summarize,
+                     sumSteps = round(sum(steps), 2))
+
+hist(data2_steps$sumSteps, 
+     xlab = "Steps per day", 
+     main = "Histogram of steps per day")
+```
+
+Mean and median of the total number of steps
+
+```{r}
+round(mean(data2$steps), 2)
+round(median(data2$steps), 2)
+```
+
+Comparing to the first calculations, the median does no differ from it, but the mean does. Considering that previously we have got a mean of 37.38 steps and now we have got a mean of 35.68, we have then a difference of 1.7 steps per day, what gives us about 4.5%  less steps.
+
+
+
 
 ##Are there differences in activity patterns between weekdays and weekends?
 
